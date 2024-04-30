@@ -28,19 +28,19 @@ void RootIVAnalyser::AnaylseIV(double *voltages, double *currents, size_t dataPo
         std::cout << "Can not open result file: " << res_file_path << std::endl;
     }
 
-    for (int pS = 0; pS < 2; pS++)
+    for (int pS = 1; pS < 2; pS++)
     {
-        for (int pSW = 5; pSW < 11; pSW = pSW + 2)
+        for (int pSW = 5; pSW < 6; pSW = pSW + 2)
         {
-            for (int lnS = 0; lnS < 2; lnS++)
+            for (int lnS = 1; lnS < 2; lnS++)
             {
-                for (int lnSW = 5; lnSW < 11; lnSW = lnSW + 2)
+                for (int lnSW = 5; lnSW < 6; lnSW = lnSW + 2)
                 {
-                    for (int dS = 0; dS < 2; dS++)
+                    for (int dS = 1; dS < 2; dS++)
                     {
-                        for (int dSW = 5; dSW < 11; dSW = dSW + 2)
+                        for (int dSW = 5; dSW < 6; dSW = dSW + 2)
                         {
-                            for (int fW = 50; fW < 555; fW = fW + 5)
+                            for (int fW = 200; fW < 205; fW = fW + 5)
                             {
 
                                 //  std::cout<<"ABCDEF "<<SIPM_ID<<" "<<pS<<" "<<pSW<<" "<<lnS<<" "<<lnSW<<" "<<dS<<" "<<dSW<<" "<<fW/100.0<<std::endl;
@@ -53,7 +53,7 @@ void RootIVAnalyser::AnaylseIV(double *voltages, double *currents, size_t dataPo
                                 if (pS == 0 & lnS == 0 && dS == 0 && pSW == 5 && lnSW == 5 && dSW == 5)
                                     relDerivativeAnalysis->SaveAllPlot(output_dir_plots.c_str());
 
-                                if(resultFile != NULL)
+                                if (resultFile != NULL)
                                 {
                                     fprintf(resultFile, "%d ", arrayID);
                                     fprintf(resultFile, "%lu ", timestamp); //" PRIu64 "
@@ -72,11 +72,10 @@ void RootIVAnalyser::AnaylseIV(double *voltages, double *currents, size_t dataPo
                                     fprintf(resultFile, "%d ", fW);
 
                                     fprintf(resultFile, "%d ", sipmID);
-        
 
                                     fprintf(resultFile, "%2.3lf ", preTemp);
 
-                                    fprintf(resultFile, "%2.3lf ", preTemp); //temp std dev, fix it later
+                                    fprintf(resultFile, "%2.3lf ", preTemp); // temp std dev, fix it later
 
                                     fprintf(resultFile, "%2.4lf ", relDerivativeAnalysis->GetRawVbr());  // relDerivative RAW Vbr:
                                     fprintf(resultFile, "%2.4lf ", relDerivativeAnalysis->GetCompVbr()); // relDerivative compensated Vbr:
