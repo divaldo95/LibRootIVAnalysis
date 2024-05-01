@@ -53,7 +53,7 @@ void RootIVAnalyser::AnaylseIV(double *voltages, double *currents, size_t dataPo
                                 if (pS == 0 & lnS == 0 && dS == 0 && pSW == 5 && lnSW == 5 && dSW == 5)
                                     relDerivativeAnalysis->SaveAllPlot(output_dir_plots.c_str());
 
-                                if (resultFile != NULL)
+                                if(resultFile != NULL)
                                 {
                                     fprintf(resultFile, "%d ", arrayID);
                                     fprintf(resultFile, "%lu ", timestamp); //" PRIu64 "
