@@ -8,7 +8,7 @@ RootIVAnalyser::~RootIVAnalyser()
 {
 }
 
-void RootIVAnalyser::AnaylseIV(double *voltages, double *currents, size_t dataPoints, double preTemp, double postTemp, int arrayID, int sipmID, unsigned long timestamp, std::string outBasePath)
+void RootIVAnalyser::AnalyseIV(double *voltages, double *currents, size_t dataPoints, double preTemp, double postTemp, int arrayID, int sipmID, unsigned long timestamp, std::string outBasePath)
 {
     std::string output_dir_result = outBasePath + "IV/result";
     mkdir(output_dir_result.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -46,15 +46,18 @@ void RootIVAnalyser::AnaylseIV(double *voltages, double *currents, size_t dataPo
                                 //  std::cout<<"ABCDEF "<<SIPM_ID<<" "<<pS<<" "<<pSW<<" "<<lnS<<" "<<lnSW<<" "<<dS<<" "<<dSW<<" "<<fW/100.0<<std::endl;
 
                                 RelativeDerivativeAnalysis *relDerivativeAnalysis = new RelativeDerivativeAnalysis(voltages, currents, dataPoints, pS, pSW, lnS, lnSW, dS, dSW, fW / 1000.0);
+                                ThirdDerivativeAnalysis *thirdDerivativeAnalysis = new ThirdDerivativeAnalysis(voltages, currents, dataPoints);
 
                                 //!!!!!!! SWITCH OFF SAVE !!!!!!!!!!!!!!!!!!!!!!
                                 // relDerivativeAnalysis->SaveAllPlot(output_dir_plots.c_str());
 
-                                if (pS == 0 & lnS == 0 && dS == 0 && pSW == 5 && lnSW == 5 && dSW == 5)
+                                if (pS == 0 && lnS == 0 && dS == 0 && pSW == 5 && lnSW == 5 && dSW == 5)
                                     relDerivativeAnalysis->SaveAllPlot(output_dir_plots.c_str());
 
+                                thirdDerivativeAnalysis->SaveAllPlot(output_dir_plots.c_str());
                                 if(resultFile != NULL)
                                 {
+                                    //Relative derivative
                                     fprintf(resultFile, "%d ", arrayID);
                                     fprintf(resultFile, "%lu ", timestamp); //" PRIu64 "
                                     fprintf(resultFile, "%zu ", dataPoints);
@@ -83,6 +86,37 @@ void RootIVAnalyser::AnaylseIV(double *voltages, double *currents, size_t dataPo
                                     fprintf(resultFile, "%2.4lf ", relDerivativeAnalysis->GetChi2()); // Chi2
 
                                     fprintf(resultFile, "\n");
+
+
+                                    //Third derivative
+                                    fprintf(resultFile, "%d ", arrayID);
+                                    fprintf(resultFile, "%lu ", timestamp); //" PRIu64 "
+                                    fprintf(resultFile, "%zu ", dataPoints);
+
+                                    fprintf(resultFile, "%.3lf ", 2.0); // IV analysis method 1 relative derivative
+
+                                    // IV analysis parameters
+                                    /*fprintf(resultFile, "%.3lf ", (double)thirdDerivativeAnalysis->Get_nPreSmooths());
+                                    fprintf(resultFile, "%.3lf ", (double)thirdDerivativeAnalysis->Get_preSmoothsWidth());
+                                    fprintf(resultFile, "%.3lf ", (double)thirdDerivativeAnalysis->Get_nlnSmooths());
+                                    fprintf(resultFile, "%.3lf ", (double)thirdDerivativeAnalysis->Get_lnSmoothsWidth());
+                                    fprintf(resultFile, "%.3lf ", (double)thirdDerivativeAnalysis->Get_nderSmooths());
+                                    fprintf(resultFile, "%.3lf ", (double)thirdDerivativeAnalysis->Get_derSmoothsWidth());
+
+                                    fprintf(resultFile, "%d ", fW);*/
+
+                                    fprintf(resultFile, "%d ", sipmID);
+
+                                    fprintf(resultFile, "%2.3lf ", preTemp);
+
+                                    fprintf(resultFile, "%2.3lf ", preTemp); // temp std dev, fix it later
+
+                                    fprintf(resultFile, "%2.4lf ", thirdDerivativeAnalysis->GetRawVbr());  // relDerivative RAW Vbr:
+                                    fprintf(resultFile, "%2.4lf ", thirdDerivativeAnalysis->GetCompVbr()); // relDerivative compensated Vbr:
+
+                                    //fprintf(resultFile, "%2.4lf ", relDerivativeAnalysis->GetChi2()); // Chi2
+
+                                    fprintf(resultFile, "\n");
                                 }
 
                                 rawVbr = relDerivativeAnalysis->GetRawVbr();
@@ -90,6 +124,7 @@ void RootIVAnalyser::AnaylseIV(double *voltages, double *currents, size_t dataPo
                                 chisquare = relDerivativeAnalysis->GetChi2();
 
                                 delete relDerivativeAnalysis;
+                                delete thirdDerivativeAnalysis;
                             }
                         }
                     }
@@ -126,7 +161,7 @@ extern "C"
 
     DLL_EXPORT_TYP void RIVA_Class_AnalyseIV(RootIVAnalyser *ivAnalyser, double *voltages, double *currents, size_t dataPoints, double preTemp, double postTemp, int arrayID, int sipmID, unsigned long timestamp, char *outBasePath)
     {
-        ivAnalyser->AnaylseIV(voltages, currents, dataPoints, preTemp, postTemp, arrayID, sipmID, timestamp, outBasePath);
+        ivAnalyser->AnalyseIV(voltages, currents, dataPoints, preTemp, postTemp, arrayID, sipmID, timestamp, outBasePath);
     }
 
     DLL_EXPORT_TYP void RIVA_Class_GetResults(RootIVAnalyser *ivAnalyser, double *rawVbr, double *compVbr, double *cs)

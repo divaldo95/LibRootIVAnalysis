@@ -11,6 +11,7 @@ Description:
 #pragma once
 
 #include "RelativeDerivativeAnalysis.hpp"
+#include "ThirdDerivativeAnalysis.hpp"
 #include <sys/stat.h>
 
 //MacOS compatibility
@@ -41,7 +42,7 @@ public:
     RootIVAnalyser();
     ~RootIVAnalyser();
 
-    void AnaylseIV(double *voltages, double *currents, size_t dataPoints, double preTemp, double postTemp, int arrayID, int sipmID, unsigned long timestamp, std::string outBasePath);
+    void AnalyseIV(double *voltages, double *currents, size_t dataPoints, double preTemp, double postTemp, int arrayID, int sipmID, unsigned long timestamp, std::string outBasePath);
 
     void GetResults(double *rVbr, double *cVbr, double *cs);
 };

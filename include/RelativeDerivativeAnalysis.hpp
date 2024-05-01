@@ -38,7 +38,7 @@ public:
 	// constructor with default parameters
 	RelativeDerivativeAnalysis(double *voltages, double *currents, size_t nPoints)
 	{
-		volatgeArray = voltages;
+		voltageArray = voltages;
 		currentArray = currents;
 		nmeasurements = nPoints;
 		init_function();
@@ -63,7 +63,7 @@ public:
 	// constructor
 	RelativeDerivativeAnalysis(double *voltages, double *currents, size_t nPoints, uint32_t nPreSmooths_, uint32_t preSmoothsWidth_, uint32_t nlnSmooths_, uint32_t lnSmoothsWidth_, uint32_t nderSmooths_, uint32_t derSmoothsWidth_, double fit_width_)
 	{
-		volatgeArray = voltages;
+		voltageArray = voltages;
 		currentArray = currents;
 		nmeasurements = nPoints;
 
@@ -104,13 +104,13 @@ public:
 		{
 			SaveFitPlot(path);
 
-			Plot IV_plot(volatgeArray, currentArray, nmeasurements, iv_plot_cut, "IV curve");
-			IV_plot.addSmoothedGraph(volatgeArray, fineCurr_sm);
+			Plot IV_plot(voltageArray, currentArray, nmeasurements, iv_plot_cut, "IV curve");
+			IV_plot.addSmoothedGraph(voltageArray, fineCurr_sm);
 			std::string filename = std::to_string(position) + "_IV" + std::to_string(nPreSmooths) + std::to_string(preSmoothsWidth) + std::to_string(nlnSmooths) + std::to_string(lnSmoothsWidth) + std::to_string(nderSmooths) + std::to_string(derSmoothsWidth) + std::to_string((int)(fit_width * 1000));
 			IV_plot.save(path, filename.c_str());
 
-			Plot ln_IV_plot(volatgeArray, lnArray, nmeasurements, ln_iv_plot_cut, "ln IV curve");
-			ln_IV_plot.addSmoothedGraph(volatgeArray, lnArray_sm);
+			Plot ln_IV_plot(voltageArray, lnArray, nmeasurements, ln_iv_plot_cut, "ln IV curve");
+			ln_IV_plot.addSmoothedGraph(voltageArray, lnArray_sm);
 			filename = std::to_string(position) + "_ln_IV" + std::to_string(nPreSmooths) + std::to_string(preSmoothsWidth) + std::to_string(nlnSmooths) + std::to_string(lnSmoothsWidth) + std::to_string(nderSmooths) + std::to_string(derSmoothsWidth) + std::to_string((int)(fit_width * 1000));
 			ln_IV_plot.save(path, filename.c_str());
 		}
@@ -171,7 +171,7 @@ public:
 	virtual ~RelativeDerivativeAnalysis()
 	{
 		// printf("~RelDerivativeAnalysis()\n");
-		// if (volatgeArray) delete volatgeArray;
+		// if (voltageArray) delete voltageArray;
 		// if (currentArray) delete currentArray;
 		if (fineCurr_sm)
 			delete fineCurr_sm;
@@ -191,7 +191,7 @@ private:
 	//------------------class private functions---------------------------------
 	void init_function()
 	{
-		if (nmeasurements != 0 && volatgeArray != NULL && currentArray != NULL)
+		if (nmeasurements != 0 && voltageArray != NULL && currentArray != NULL)
 		{
 			lnArray = new (std::nothrow) double[nmeasurements];
 			if (lnArray != NULL)
@@ -263,7 +263,7 @@ private:
 			lnArray_sm = runSGMultiple(nmeasurements, lnArray, lnSmoothsWidth, nlnSmooths);
 
 			// calculate derivative
-			Derivate Derivate_(nmeasurements, lnArray_sm, volatgeArray);
+			Derivate Derivate_(nmeasurements, lnArray_sm, voltageArray);
 			derivativeArray = Derivate_.GetDerivative();
 
 			// apply SavitzkyGolay filter after derivative
@@ -271,14 +271,14 @@ private:
 			/*
 			for(int i=0;i<nmeasurements;i++)
 			{
-			printf("%d %lf %lf\n",i,volatgeArray[i], currentArray[i]);
+			printf("%d %lf %lf\n",i,voltageArray[i], currentArray[i]);
 		  }
 		  */
-			relDerPlot = new Plot(volatgeArray, derivativeArray, nmeasurements, der_plot_cut, "relative derivative");
+			relDerPlot = new Plot(voltageArray, derivativeArray, nmeasurements, der_plot_cut, "relative derivative");
 			if (relDerPlot == NULL)
 				return true;
 
-			relDerPlot->addSmoothedGraph(volatgeArray, derivativeArray_sm);
+			relDerPlot->addSmoothedGraph(voltageArray, derivativeArray_sm);
 
 			TGraph *relDerGraphSm = relDerPlot->GetSmoothedTgraph();
 			if (relDerGraphSm == NULL)
@@ -313,7 +313,7 @@ private:
 
 	uint8_t position = 0;
 	uint32_t nmeasurements = 0;
-	double *volatgeArray = NULL;
+	double *voltageArray = NULL;
 	double *currentArray = NULL;
 
 	const double tempCoeff = 0.037; // temperature compensation coefficient V/Celsius
