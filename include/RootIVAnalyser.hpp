@@ -33,9 +33,9 @@ Description:
 class RootIVAnalyser
 {
 private:
-    double rawVbr = 1.35464;
-    double compVbr = 876.24524;
-    double chisquare = 3785.78612;
+    double rawVbr = 0.0;
+    double compVbr = 0.0;
+    double chisquare = 0.0;
 
 public:
     RootIVAnalyser();
