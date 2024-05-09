@@ -11,16 +11,12 @@ public class RootIVAnalyser : IDisposable
     public static extern void RIVA_Class_Delete(IntPtr ivAnalyser);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void RIVA_Class_AnalyseIV(IntPtr ivAnalyser,
-                                                double[] voltages,
-                                                double[] currents,
-                                                UIntPtr dataPoints,
-                                                double preTemp,
-                                                double postTemp,
-                                                int arrayID,
-                                                int sipmID,
-                                                ulong timestamp,
-                                                string outBasePath);
+    public static extern IntPtr RIVA_Class_AnalyseIV(IntPtr ivAnalyser, 
+                                                    SiPMData data, 
+                                                    AnalysisTypes method, 
+                                                    bool savePlots, 
+                                                    string outBasePath,
+                                                    string filePrefix);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void RIVA_Class_GetResults(IntPtr ivAnalyser,
@@ -52,10 +48,9 @@ public class RootIVAnalyser : IDisposable
         ivAnalyser = RIVA_Class_Create();
     }
 
-    public void AnalyseIV(double[] voltages, double[] currents, UIntPtr dataPoints, double preTemp, double postTemp,
-                            int arrayID, int sipmID, ulong timestamp, string outBasePath)
+    public void AnalyseIV(SiPMData data, AnalysisTypes type, bool savePlots, string outBasePath, string filePrefix)
     {
-        RIVA_Class_AnalyseIV(ivAnalyser, voltages, currents, dataPoints, preTemp, postTemp, arrayID, sipmID, timestamp, outBasePath);
+        RIVA_Class_AnalyseIV(ivAnalyser, data, type, savePlots, outBasePath, filePrefix);
     }
 
     public void GetResult(out double RawBreakdownVoltage, out double CompensatedBreakdownVoltage, out double ChiSquare)
@@ -106,8 +101,30 @@ public class RootIVAnalyser : IDisposable
 
         CurrentMeasurementDataModel c = JSONHelper.ReadJsonFile<CurrentMeasurementDataModel>(file);
 
-        iv.AnalyseIV(c.IVResult.DMMVoltage.ToArray(), c.IVResult.SMUCurrent.ToArray(), (nuint)c.IVResult.SMUCurrent.Count, 25.0, 26.0, 0, 0, (ulong)c.IVResult.StartTimestamp, FilePathHelper.GetCurrentDirectory());
+        double[] voltagesArray = c.IVResult.DMMVoltage.ToArray();
+        double[] currentsArray = c.IVResult.SMUCurrent.ToArray();
 
+        // Pin the arrays to get their pointers
+        GCHandle voltagesHandle = GCHandle.Alloc(voltagesArray, GCHandleType.Pinned);
+        GCHandle currentsHandle = GCHandle.Alloc(currentsArray, GCHandleType.Pinned);
+
+        SiPMData data = new SiPMData
+        {
+            voltages = voltagesHandle.AddrOfPinnedObject(),
+            currents = currentsHandle.AddrOfPinnedObject(),
+            dataPoints = (nuint)c.IVResult.SMUCurrent.Count,
+            preTemp = 25.0,
+            postTemp = 30.0,
+            timestamp = (ulong)c.IVResult.StartTimestamp
+        };
+
+        string outPath = Path.Combine(FilePathHelper.GetCurrentDirectory(), "results");
+        Directory.CreateDirectory(outPath);
+
+        iv.AnalyseIV(data, AnalysisTypes.RelativeDerivativeMethod, true, outPath, "TestIVResult");
+
+        voltagesHandle.Free();
+        currentsHandle.Free();
 
         iv.GetResult(out vbr, out cvbr, out cs);
 
@@ -231,4 +248,44 @@ public class CurrentSiPMModel
         Array = -1;
         SiPM = -1;
     }
+}
+
+public enum AnalysisTypes
+{
+    RelativeDerivativeMethod,
+    ThirdDerivativeMethod
+}
+
+public struct AnalysisProperties 
+{
+    public int nPreSmooth = 1;
+    public int preSmoothWidth = 5;
+    public int nlnSmooth = 1;
+    public int lnSmoothWidth = 5;
+    public int nDerivativeSmooth = 1;
+    public int derivativeSmoothWidth = 5;
+    public int fitWidth = 100;
+
+    //set default properties
+    public AnalysisProperties()
+    {
+        nPreSmooth = 1;
+        preSmoothWidth = 5;
+        nlnSmooth = 1;
+        lnSmoothWidth = 5;
+        nDerivativeSmooth = 1;
+        derivativeSmoothWidth = 5;
+        fitWidth = 100;
+    }
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct SiPMData 
+{
+    public IntPtr voltages;
+    public IntPtr currents;
+    public UIntPtr dataPoints;
+    public double preTemp;
+    public double postTemp;
+    public ulong timestamp;
 }

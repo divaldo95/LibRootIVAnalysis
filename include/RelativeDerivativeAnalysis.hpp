@@ -1,47 +1,31 @@
 #ifndef __RelDerivativeAnalysis_H__
 #define __RelDerivativeAnalysis_H__
 
-#include "TMultiGraph.h"
-#include "TPaveText.h"
-#include "TPaveLabel.h"
-#include "TText.h"
-#include "TGraph.h"
-#include "TCanvas.h"
-#include "TAxis.h"
-#include "TLine.h"
-#include "TMath.h"
-#include <string>
-#include <new>
-#include "TF1.h"
-#include "SavitzkyGolayFilter.hpp"
-#include "Derivate.hpp"
-#include "Plot.hpp"
+#include "IVAnalyser.hpp"
 
 /**
  *
  *  @class  RelativeDerivativeAnalysis
  *  @author Balazs Gyongyosi && Tamas Majoros && David Baranyai
- *	 @date 2019.03 - 2019.05 | 2024.04
- *  @brief
+ *	@date 2019.03 - 2019.05 | 2024.04
+ *  @brief Running Relative Derivative method to calculate breakdown voltage
+ *         for Silicon Photomultipliers
  */
 
-#ifdef __CINT__
-typedef unsigned int uint8_t;
-typedef unsigned int uint32_t;
-typedef unsigned int uint64_t;
-#endif
-
-class RelativeDerivativeAnalysis
+class RelativeDerivativeAnalysis : public IVAnalyser
 {
-
 public:
-	// constructor with default parameters
-	RelativeDerivativeAnalysis(double *voltages, double *currents, size_t nPoints)
+	RelativeDerivativeAnalysis()
 	{
-		voltageArray = voltages;
-		currentArray = currents;
-		nmeasurements = nPoints;
-		init_function();
+		nPreSmooths = 0;
+		// SG filter width 5,7 or 9
+		preSmoothsWidth = 5;
+
+		// number of runs of SG filter after derivative(), if no filter is required set to 0
+		nderSmooths = 0;
+		// SG filter width 5,7 or 9
+		derSmoothsWidth = 5;
+
 	}
 
 	/*
@@ -60,87 +44,85 @@ public:
 
 	//----------------------------------------------------------------------------------
 	*/
-	// constructor
-	RelativeDerivativeAnalysis(double *voltages, double *currents, size_t nPoints, uint32_t nPreSmooths_, uint32_t preSmoothsWidth_, uint32_t nlnSmooths_, uint32_t lnSmoothsWidth_, uint32_t nderSmooths_, uint32_t derSmoothsWidth_, double fit_width_)
-	{
-		voltageArray = voltages;
-		currentArray = currents;
-		nmeasurements = nPoints;
+	
 
-		nPreSmooths = nPreSmooths_;
-		preSmoothsWidth = preSmoothsWidth_;
+	void SetSmoothingProperties(uint32_t nPreSmooths_, uint32_t preSmoothsWidth_, uint32_t nlnSmooths_, uint32_t lnSmoothsWidth_,
+                                uint32_t nderSmooths_, uint32_t derSmoothsWidth_, double fit_width_)
+    {
+        // Set common properties using base function
+        IVAnalyser::SetSmoothingProperties(nPreSmooths_, preSmoothsWidth_, nderSmooths_, derSmoothsWidth_);
+
+        // Set custom properties
 		nlnSmooths = nlnSmooths_;
 		lnSmoothsWidth = lnSmoothsWidth_;
-		nderSmooths = nderSmooths_;
-		derSmoothsWidth = derSmoothsWidth_;
 		fit_width = fit_width_;
 
-		init_function();
-	}
+		/*
+		std::cout << "nPreSmooth: "           << nPreSmooths << std::endl
+					<< "preSmoothWidth: "       << preSmoothsWidth << std::endl
+					<< "nlnSmooth: "            << nlnSmooths << std::endl
+					<< "lnSmoothWidth: "        << lnSmoothsWidth << std::endl
+					<< "nDerivativeSmooth: "    << nderSmooths << std::endl
+					<< "derivativeSmoothWidth: " << derSmoothsWidth << std::endl
+					<< "fitWidth: "             << fit_width << std::endl;
+		*/
+    }
 
-	void SaveFitPlot(const char *path)
+	void SaveFitPlot(std::string path, std::string prefix)
 	{
-		if (!error && relDerPlot != NULL)
+		if (!error && plot != NULL)
 		{
 			std::string RAW_Vbr_text = "RAW Vbr:" + std::to_string(VBR_RAW) + "V";
 			std::string comp_Vbr_text = "Comp Vbr:" + std::to_string(VBR_COMP) + "V";
-			std::string tempAvgLabelText = "avg temp: 25C";		  // std::to_string(IV_file->GetSIPMTemp()) +"C";
-			std::string tempStdDevLabelText = "temp StdDev: 25C"; // std::to_string(IV_file->GetSIPMStdDev());
+			std::string tempAvgLabelText = "avg temp: " + std::to_string(simpTemp) + "C";
+			std::string tempStdDevLabelText = "temp StdDev: " + std::to_string(sipmTempStdDev);
 
-			relDerPlot->addLabel(RAW_Vbr_text.c_str(), 0.92, 0.95);
-			relDerPlot->addLabel(comp_Vbr_text.c_str(), 0.92, 0.98);
-			relDerPlot->addLabel(tempAvgLabelText.c_str(), 0.7, 0.98);
-			relDerPlot->addLabel(tempStdDevLabelText.c_str(), 0.7, 0.95);
+			plot->addLabel(RAW_Vbr_text.c_str(), 0.92, 0.95);
+			plot->addLabel(comp_Vbr_text.c_str(), 0.92, 0.98);
+			plot->addLabel(tempAvgLabelText.c_str(), 0.7, 0.98);
+			plot->addLabel(tempStdDevLabelText.c_str(), 0.7, 0.95);
 
-			std::string filename = std::to_string(position) + "_rel_der_fit" + std::to_string(nPreSmooths) + std::to_string(preSmoothsWidth) + std::to_string(nlnSmooths) + std::to_string(lnSmoothsWidth) + std::to_string(nderSmooths) + std::to_string(derSmoothsWidth) + std::to_string((int)(fit_width * 1000));
+			std::string filename = prefix + "_rel_der_fit" + std::to_string(nPreSmooths) + std::to_string(preSmoothsWidth) + std::to_string(nlnSmooths) + std::to_string(lnSmoothsWidth) + std::to_string(nderSmooths) + std::to_string(derSmoothsWidth) + std::to_string((int)(fit_width * 1000));
 
-			relDerPlot->save(path, filename.c_str());
+			plot->save(path.c_str(), filename.c_str());
+
+			OpenOutRootFile(path, prefix);
+			TMultiGraph *ptr = plot -> GetResultMultiGraph();
+			ptr -> Write("fitted_data");
+			CloseOutRootFile();
+
 		}
 	}
 
-	void SaveAllPlot(const char *path)
+	void SaveAllPlot(std::string path, std::string prefix)
 	{
 		if (!error)
 		{
-			SaveFitPlot(path);
+			SaveFitPlot(path, prefix);
 
-			Plot IV_plot(voltageArray, currentArray, nmeasurements, iv_plot_cut, "IV curve");
+			OpenOutRootFile(path, prefix);			
+
+			Plot IV_plot(voltageArray, currentArray, nMeasurements, iv_plot_cut, "IV curve");
 			IV_plot.addSmoothedGraph(voltageArray, fineCurr_sm);
-			std::string filename = std::to_string(position) + "_IV" + std::to_string(nPreSmooths) + std::to_string(preSmoothsWidth) + std::to_string(nlnSmooths) + std::to_string(lnSmoothsWidth) + std::to_string(nderSmooths) + std::to_string(derSmoothsWidth) + std::to_string((int)(fit_width * 1000));
-			IV_plot.save(path, filename.c_str());
+			std::string filename = prefix + "_IV" + std::to_string(nPreSmooths) + std::to_string(preSmoothsWidth) + std::to_string(nlnSmooths) + std::to_string(lnSmoothsWidth) + std::to_string(nderSmooths) + std::to_string(derSmoothsWidth) + std::to_string((int)(fit_width * 1000));
+			IV_plot.save(path.c_str(), filename.c_str());
 
-			Plot ln_IV_plot(voltageArray, lnArray, nmeasurements, ln_iv_plot_cut, "ln IV curve");
+			TMultiGraph *ptr = IV_plot.GetResultMultiGraph();
+			ptr -> Write("iv_plot");
+
+			Plot ln_IV_plot(voltageArray, lnArray, nMeasurements, ln_iv_plot_cut, "ln IV curve");
 			ln_IV_plot.addSmoothedGraph(voltageArray, lnArray_sm);
-			filename = std::to_string(position) + "_ln_IV" + std::to_string(nPreSmooths) + std::to_string(preSmoothsWidth) + std::to_string(nlnSmooths) + std::to_string(lnSmoothsWidth) + std::to_string(nderSmooths) + std::to_string(derSmoothsWidth) + std::to_string((int)(fit_width * 1000));
-			ln_IV_plot.save(path, filename.c_str());
+			filename = prefix + "_ln_IV" + std::to_string(nPreSmooths) + std::to_string(preSmoothsWidth) + std::to_string(nlnSmooths) + std::to_string(lnSmoothsWidth) + std::to_string(nderSmooths) + std::to_string(derSmoothsWidth) + std::to_string((int)(fit_width * 1000));
+			ln_IV_plot.save(path.c_str(), filename.c_str());
+
+			ptr = ln_IV_plot.GetResultMultiGraph();
+			ptr -> Write("ln_iv_plot");
+
+			CloseOutRootFile();
 		}
 	}
 
-	double GetRawVbr()
-	{
-		return VBR_RAW;
-	}
-
-	double GetCompVbr()
-	{
-		return VBR_COMP;
-	}
-
-	double GetChi2()
-	{
-		return chi2;
-	}
-
 	// get parameters functions---------------------------------
-	int Get_nPreSmooths()
-	{
-		return nPreSmooths;
-	}
-
-	int Get_preSmoothsWidth()
-	{
-		return preSmoothsWidth;
-	}
 
 	int Get_nlnSmooths()
 	{
@@ -152,16 +134,6 @@ public:
 		return lnSmoothsWidth;
 	}
 
-	int Get_nderSmooths()
-	{
-		return nderSmooths;
-	}
-
-	int Get_derSmoothsWidth()
-	{
-		return derSmoothsWidth;
-	}
-
 	double Get_fit_width()
 	{
 		return fit_width;
@@ -170,195 +142,100 @@ public:
 	// destructor
 	virtual ~RelativeDerivativeAnalysis()
 	{
-		// printf("~RelDerivativeAnalysis()\n");
-		// if (voltageArray) delete voltageArray;
-		// if (currentArray) delete currentArray;
-		if (fineCurr_sm)
-			delete fineCurr_sm;
+		if (lnArray)
+			delete lnArray;
 		if (lnArray_sm)
 			delete lnArray_sm;
-		if (derivativeArray)
-			delete derivativeArray;
-		if (derivativeArray_sm)
-			delete derivativeArray_sm;
-		if (relDerPlot)
-			delete relDerPlot;
-		if (f1)
-			delete f1;
+	}
+
+	bool RunAnalysis()
+    {
+		if (nMeasurements == 0 || voltageArray == NULL || currentArray == NULL)
+        {
+            error = true;
+            return false;
+        }
+		lnArray = new (std::nothrow) double[nMeasurements];
+		if (lnArray == NULL)
+		{
+			error = true;
+            return false;
+		}
+
+		// calculate plot display cuts
+		iv_plot_cut = nPreSmooths * ((preSmoothsWidth - 1) / 2);
+		ln_iv_plot_cut = iv_plot_cut + nlnSmooths * ((lnSmoothsWidth - 1) / 2);
+		der_plot_cut = ln_iv_plot_cut + nderSmooths * ((derSmoothsWidth - 1) / 2) + 5;
+
+		// apply SavitzkyGolay filter
+		fineCurr_sm = runSGMultiple(nMeasurements, currentArray, preSmoothsWidth, nPreSmooths);
+
+		// calculate ln()
+		for (int i = 0; i < nMeasurements; i++)
+		{
+			lnArray[i] = TMath::Log(fineCurr_sm[i]);
+		}
+
+		// apply SavitzkyGolay filter after ln()
+		lnArray_sm = runSGMultiple(nMeasurements, lnArray, lnSmoothsWidth, nlnSmooths);
+
+		// calculate derivative
+		Derivate Derivate_(nMeasurements, lnArray_sm, voltageArray);
+		derivativeArray = Derivate_.GetDerivative();
+
+		// apply SavitzkyGolay filter after derivative
+		derivativeArray_sm = runSGMultiple(nMeasurements, derivativeArray, derSmoothsWidth, nderSmooths);
+
+		plot = std::make_unique<Plot>(voltageArray, derivativeArray, nMeasurements, der_plot_cut, "relative derivative");
+		if (plot == NULL)
+		{
+			error = true;
+            return false;
+		}
+
+		plot->addSmoothedGraph(voltageArray, derivativeArray_sm);
+
+		TGraph *relDerGraphSm = plot->GetSmoothedTgraph();
+		if (relDerGraphSm == NULL)
+		{
+			error = true;
+            return false;
+		}
+
+		max_xpos = GetGraphYmaxXpos(relDerGraphSm);
+
+		printf("max XPos:%lf\n", max_xpos);
+
+		f1 = std::make_unique<TF1>("f1", "gaus", max_xpos - fit_width, max_xpos + fit_width);
+
+		relDerGraphSm->Fit("f1", "R");
+
+		VBR_RAW = relDerGraphSm->GetFunction("f1")->GetParameter(1);
+
+		VBR_COMP = calcBreakdownTo25C_nearest(VBR_RAW);
+
+		CHI2 = f1->GetChisquare();
+
+		return true;
 	}
 
 private:
 	//------------------class private functions---------------------------------
-	void init_function()
-	{
-		if (nmeasurements != 0 && voltageArray != NULL && currentArray != NULL)
-		{
-			lnArray = new (std::nothrow) double[nmeasurements];
-			if (lnArray != NULL)
-			{
-				if (RunCalculations())
-				{
-					error = true;
-				}
-			}
-			else
-			{
-				error = true;
-			}
-		}
-		else
-		{
-			error = true;
-		}
-	}
-
-	double calcBreakdownTo25C_nearest(double BreakdownVoltage)
-	{
-		const double operatingTemp = 25.0; // Celsius
-		return BreakdownVoltage + ((operatingTemp - simpTemp) * tempCoeff);
-	}
-
-	// run savitzky-Golay filter 'nruns' time on the inputArray
-	//  filterWidth it must be 5,7 or 9
-	//  if nruns 0 this function return with the original array
-	double *runSGMultiple(int inArraySize, double *inArray, int filterWidth, int nruns)
-	{
-		double *ret = inArray;
-		for (int i = 0; i < nruns; i++)
-		{
-			SavitzkyGolayFilter smooth(inArraySize, ret, filterWidth); // filter width 5,7, or 9
-			if (i != 0)
-			{
-				delete ret;
-			}
-			ret = smooth.GetSmoothed();
-		}
-		return ret;
-	}
-
-	double GetGraphYmaxXpos(TGraph *gr)
-	{
-		return gr->GetX()[TMath::LocMax(gr->GetN(), gr->GetY())];
-	}
-
-	bool RunCalculations()
-	{
-		if (!error)
-		{
-			// calculate plot display cuts
-			iv_plot_cut = nPreSmooths * ((preSmoothsWidth - 1) / 2);
-			ln_iv_plot_cut = iv_plot_cut + nlnSmooths * ((lnSmoothsWidth - 1) / 2);
-			der_plot_cut = ln_iv_plot_cut + nderSmooths * ((derSmoothsWidth - 1) / 2) + 5;
-
-			// apply SavitzkyGolay filter
-			fineCurr_sm = runSGMultiple(nmeasurements, currentArray, preSmoothsWidth, nPreSmooths);
-
-			// calculate ln()
-			for (int i = 0; i < nmeasurements; i++)
-			{
-				lnArray[i] = TMath::Log(fineCurr_sm[i]);
-			}
-
-			// apply SavitzkyGolay filter after ln()
-			lnArray_sm = runSGMultiple(nmeasurements, lnArray, lnSmoothsWidth, nlnSmooths);
-
-			// calculate derivative
-			Derivate Derivate_(nmeasurements, lnArray_sm, voltageArray);
-			derivativeArray = Derivate_.GetDerivative();
-
-			// apply SavitzkyGolay filter after derivative
-			derivativeArray_sm = runSGMultiple(nmeasurements, derivativeArray, derSmoothsWidth, nderSmooths);
-			/*
-			for(int i=0;i<nmeasurements;i++)
-			{
-			printf("%d %lf %lf\n",i,voltageArray[i], currentArray[i]);
-		  }
-		  */
-			relDerPlot = new Plot(voltageArray, derivativeArray, nmeasurements, der_plot_cut, "relative derivative");
-			if (relDerPlot == NULL)
-				return true;
-
-			relDerPlot->addSmoothedGraph(voltageArray, derivativeArray_sm);
-
-			TGraph *relDerGraphSm = relDerPlot->GetSmoothedTgraph();
-			if (relDerGraphSm == NULL)
-				return true;
-
-			max_xpos = GetGraphYmaxXpos(relDerGraphSm);
-
-			printf("max XPos:%lf\n", max_xpos);
-
-			f1 = new TF1("f1", "gaus", max_xpos - fit_width, max_xpos + fit_width);
-
-			relDerGraphSm->Fit("f1", "R");
-
-			VBR_RAW = relDerGraphSm->GetFunction("f1")->GetParameter(1);
-
-			VBR_COMP = calcBreakdownTo25C_nearest(VBR_RAW);
-
-			chi2 = f1->GetChisquare();
-
-			delete relDerGraphSm;
-
-			return false;
-		}
-		else
-		{
-			return true;
-		}
-	}
 
 	//------------------class private variables---------------------------------
-	bool error = false;
-
-	uint8_t position = 0;
-	uint32_t nmeasurements = 0;
-	double *voltageArray = NULL;
-	double *currentArray = NULL;
-
-	const double tempCoeff = 0.037; // temperature compensation coefficient V/Celsius
-	double simpTemp = 30.0;
-
-	double *fineCurr_sm = NULL;
 	double *lnArray = NULL;
 	double *lnArray_sm = NULL;
-	double *derivativeArray = NULL;
-	double *derivativeArray_sm = NULL;
 
-	double max_xpos = 0;
-
-	Plot *relDerPlot = NULL;
-
-	TGraph *relDerGraphSm = NULL;
-
-	TF1 *f1 = NULL;
-
-	double VBR_RAW = 0;
-	double VBR_COMP = 0;
-
-	double chi2 = 0;
-
-	int iv_plot_cut = 0;
 	int ln_iv_plot_cut = 0;
-	int first_der__plot_cut = 0;
 	int der_plot_cut = 0;
 
 	//----------------------------------------------------------------------------------
-	// default settings, modifiable through constructor
-	// number of runs of SG filter on original IV curve before ln(), if no filter is required set to 0
-	int nPreSmooths = 0;
-	// SG filter width 5,7 or 9
-	int preSmoothsWidth = 5;
+	// default settings, modifiable through functions
 
 	// number of runs of SG filter after ln(), if no filter is required set to 0
 	int nlnSmooths = 0;
 	// SG filter width 5,7 or 9
 	int lnSmoothsWidth = 7;
-
-	// number of runs of SG filter after derivative(), if no filter is required set to 0
-	int nderSmooths = 0;
-	// SG filter width 5,7 or 9
-	int derSmoothsWidth = 5;
 
 	double fit_width = 0.15;
 	//----------------------------------------------------------------------------------

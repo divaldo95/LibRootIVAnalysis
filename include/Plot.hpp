@@ -127,6 +127,11 @@ public:
 		return TgraphSm_;
 	}
 
+	TMultiGraph *GetResultMultiGraph() const
+	{
+		return TmultiGraph;
+	}
+
 	// destructor
 	virtual ~Plot()
 	{

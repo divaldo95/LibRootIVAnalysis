@@ -9,13 +9,7 @@
  *  @author Balazs Gyongyosi
  *	@date 2019.03 
  *  @brief  This class calculate the 1st derivative of the input array
- *
- *  
- *  
- *
  */
-
-
 
 #ifdef __CINT__
 typedef unsigned int uint8_t;

@@ -12,6 +12,9 @@ Description:
 
 #include "RelativeDerivativeAnalysis.hpp"
 #include "ThirdDerivativeAnalysis.hpp"
+#include "SiPMData.hpp"
+#include "AnalysisTypes.hpp"
+#include "AnalysisProperties.hpp"
 #include <sys/stat.h>
 
 //MacOS compatibility
@@ -38,11 +41,15 @@ private:
     double compVbr = 0.0;
     double chisquare = 0.0;
 
+    AnalysisProperties props;
+
 public:
     RootIVAnalyser();
     ~RootIVAnalyser();
 
-    void AnalyseIV(double *voltages, double *currents, size_t dataPoints, double preTemp, double postTemp, int arrayID, int sipmID, unsigned long timestamp, std::string outBasePath);
+    bool AnalyseIV(SiPMData data, AnalysisTypes method, std::string outBasePath, std::string filePrefix, bool savePlots);
 
     void GetResults(double *rVbr, double *cVbr, double *cs);
+
+    void SetProperties(AnalysisProperties props);
 };
