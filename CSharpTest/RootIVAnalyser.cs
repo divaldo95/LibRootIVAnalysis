@@ -11,10 +11,10 @@ public class RootIVAnalyser : IDisposable
     public static extern void RIVA_Class_Delete(IntPtr ivAnalyser);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr RIVA_Class_AnalyseIV(IntPtr ivAnalyser, 
-                                                    SiPMData data, 
-                                                    AnalysisTypes method, 
-                                                    bool savePlots, 
+    public static extern IntPtr RIVA_Class_AnalyseIV(IntPtr ivAnalyser,
+                                                    SiPMData data,
+                                                    AnalysisTypes method,
+                                                    bool savePlots,
                                                     string outBasePath,
                                                     string filePrefix);
 
@@ -138,6 +138,82 @@ public class RootIVAnalyser : IDisposable
         }
         */
     }
+
+    public static int GetUsedTemperatureIndex(int arrayIndex, int sipmIndex)
+    {
+        int sipmIndexOffset = arrayIndex * 2 + (sipmIndex < 8 ? 0 : 1);
+        return sipmIndexOffset;
+    }
+
+    public static List<double> GetTemperatures(CurrentMeasurementDataModel c)
+    {
+        List<double> temperatures = new List<double>();
+        int index = GetUsedTemperatureIndex(c.SiPMLocation.Array, c.SiPMLocation.SiPM);
+        for (int i = 0; i < c.IVResult.Temperatures.Count; i++)
+        {
+            if (c.SiPMLocation.Module == 0)
+            {
+                double temp = c.IVResult.Temperatures[i].Module1[index];
+                temperatures.Add(temp);
+            }
+            else
+            {
+                double temp = c.IVResult.Temperatures[i].Module2[index];
+                temperatures.Add(temp);
+            }
+        }
+        return temperatures;
+    }
+
+    public static void CalculateBreakdown(string file, out double Vbr, out double compVbr, out double chi2)
+    {
+        Console.WriteLine("Starting analysis...");
+        RootIVAnalyser iv = new RootIVAnalyser();
+
+        CurrentMeasurementDataModel c = JSONHelper.ReadJsonFile<CurrentMeasurementDataModel>(file);
+
+        double[] voltagesArray = c.IVResult.DMMVoltage.ToArray();
+        double[] currentsArray = c.IVResult.SMUCurrent.ToArray();
+
+        // Pin the arrays to get their pointers
+        GCHandle voltagesHandle = GCHandle.Alloc(voltagesArray, GCHandleType.Pinned);
+        GCHandle currentsHandle = GCHandle.Alloc(currentsArray, GCHandleType.Pinned);
+
+        List<double> temperatures = GetTemperatures(c);
+
+        double usedTemp = temperatures.Average();
+
+        SiPMData data = new SiPMData
+        {
+            voltages = voltagesHandle.AddrOfPinnedObject(),
+            currents = currentsHandle.AddrOfPinnedObject(),
+            dataPoints = (nuint)c.IVResult.SMUCurrent.Count,
+            preTemp = 25.0,
+            postTemp = usedTemp,
+            timestamp = (ulong)c.IVResult.StartTimestamp
+        };
+
+        string outPath = Path.Combine(FilePathHelper.GetCurrentDirectory(), "results");
+        Directory.CreateDirectory(outPath);
+        string outFilePrefix = $"{c.SiPMLocation.Block}_{c.SiPMLocation.Module}_{c.SiPMLocation.Array}_{c.SiPMLocation.SiPM}";
+
+        iv.AnalyseIV(data, AnalysisTypes.RelativeDerivativeMethod, false, outPath, outFilePrefix);
+
+        voltagesHandle.Free();
+        currentsHandle.Free();
+
+        iv.GetResult(out Vbr, out compVbr, out chi2);
+
+        Console.WriteLine($"Vbr: {Vbr.ToString()}, cVbr: {compVbr.ToString()}, ChiSquare: {chi2}");
+
+        Console.WriteLine("Analysis end");
+        /*
+        foreach (var item in c.IVResult.DMMVoltage)
+        {
+            Console.WriteLine(item.ToString());
+        }
+        */
+    }
 }
 
 internal static class FilePathHelper
@@ -168,7 +244,7 @@ internal static class JSONHelper
     }
 }
 
-internal class CurrentMeasurementDataModel
+public class CurrentMeasurementDataModel
 {
     public bool IsIVDone { get; set; } = false;
     public bool IsSPSDone { get; set; } = false;
@@ -256,7 +332,7 @@ public enum AnalysisTypes
     ThirdDerivativeMethod
 }
 
-public struct AnalysisProperties 
+public struct AnalysisProperties
 {
     public int nPreSmooth = 1;
     public int preSmoothWidth = 5;
@@ -280,7 +356,7 @@ public struct AnalysisProperties
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct SiPMData 
+public struct SiPMData
 {
     public IntPtr voltages;
     public IntPtr currents;

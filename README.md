@@ -44,3 +44,5 @@ make -jN (where N is the number of jobs to run simultaneously)
 - Compatiblity changes
 - Added common structs, types
 - Demonstration of new interface
+- Added basic temperature sensor mapping
+- Added batch analysis function
