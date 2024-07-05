@@ -1,3 +1,4 @@
+using CSharpTest;
 using Newtonsoft.Json;
 using System.Runtime.InteropServices;
 
@@ -24,21 +25,6 @@ public class RootIVAnalyser : IDisposable
                                                         out double compVbr,
                                                         out double cs);
 
-    /*
-    public static void MyMethod()
-    {
-        try
-        {
-            TestRootFunction();
-        }
-        catch (DllNotFoundException ex)
-        {
-            // Handle the case where the library is not found
-            Console.WriteLine("The required library is not available.");
-            // Log or take any other appropriate action
-        }
-    }
-    */
 
     private IntPtr ivAnalyser;
     private bool disposedValue;
@@ -86,6 +72,27 @@ public class RootIVAnalyser : IDisposable
         // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
         Dispose(disposing: true);
         GC.SuppressFinalize(this);
+    }
+
+    public static CurrentMeasurementDataModel OpenFile(string file)
+    {
+        CurrentMeasurementDataModel c = JSONHelper.ReadJsonFile<CurrentMeasurementDataModel>(file);
+
+        double[] temps;
+        if (c.IVResult.Temperatures.Count > 0)
+        {
+            int index = (int)c.IVResult.Temperatures.Count / 2;
+            temps = c.IVResult.Temperatures[index].Module1;
+        }
+        else
+        {
+            temps = new double[8];
+            for (int i = 0; i < 8; i++)
+            {
+                temps[i] = 25.0;
+            }
+        }
+        return c;
     }
 
     public static void TestLibrary(string file)
@@ -250,9 +257,23 @@ public class CurrentMeasurementDataModel
     public bool IsSPSDone { get; set; } = false;
     public CurrentSiPMModel SiPMLocation { get; set; }
     public SiPM SiPMMeasurementDetails { get; set; }
+    public DMMResistanceMeasurementResponseModel DMMResistanceResult { get; set; } = new DMMResistanceMeasurementResponseModel();
     public MeasurementIdentifier IVMeasurementID { get; set; } = new MeasurementIdentifier();
     public MeasurementIdentifier SPSMeasurementID { get; set; } = new MeasurementIdentifier();
     public IVMeasurementResponseModel IVResult { get; set; } = new IVMeasurementResponseModel();
+}
+
+public class DMMResistanceMeasurementResponseModel
+{
+    public MeasurementIdentifier Identifier { get; set; }
+    public long StartTimestamp { get; set; }
+    public long EndTimestamp { get; set; }
+    public bool ErrorHappened { get; set; }
+    public string ErrorMessage { get; set; }
+    public int CorrectionPercentage { get; set; }
+    public List<double> Voltages { get; set; }
+    public List<double> Currents { get; set; }
+    public double Resistance { get; set; } = 0.0;
 }
 
 public class IVMeasurementResponseModel

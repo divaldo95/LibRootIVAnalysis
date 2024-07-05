@@ -85,10 +85,62 @@ class Program
             File.WriteAllText("output.json", jsonResult);
         }
     }
+
+    public static void BatchIVDataConverter(string directory, bool relativePath = true)
+    {
+        string directoryToLoopThrough;
+        if (relativePath)
+        {
+            directoryToLoopThrough = Path.Combine(FilePathHelper.GetCurrentDirectory(), directory);
+        }
+        else
+        {
+            directoryToLoopThrough = directory;
+        }
+
+        string fileNamePattern = "*.json"; // The common file name pattern to match
+        string[] files = Directory.GetFiles(directory, fileNamePattern);
+
+        // Process each file in the directory
+        foreach (string file in files)
+        {
+            Console.WriteLine($"File: {file}");
+            // Read JSON data from the file
+
+            CurrentMeasurementDataModel data = RootIVAnalyser.OpenFile(file);
+
+            double[] temps;
+            if (data.IVResult.Temperatures.Count > 0)
+            {
+                int index = (int)data.IVResult.Temperatures.Count / 2;
+                temps = data.IVResult.Temperatures[index].Module1;
+            }
+            else
+            {
+                temps = new double[8];
+                for (int i = 0; i < 8; i++)
+                {
+                    temps[i] = 25.0;
+                }
+            }
+
+            FileWriter.WriteBinaryIVData(data.SiPMLocation.Module, data.SiPMLocation.SiPM, "IVConvert", temps, data.IVResult.DMMVoltage.ToArray(), data.IVResult.SMUVoltage.ToArray(), data.IVResult.SMUCurrent.ToArray(), double.MaxValue, "0106", data.IVResult.StartTimestamp);
+        }
+    }
+
+
     static void Main(string[] args)
     {
         Console.WriteLine("Hello, World!");
-        RootIVAnalyser.TestLibrary(FilePathHelper.GetCurrentDirectory() + "IV_0_0_0_0.json");
-        BatchAnalysis();
+        try
+        {
+            //RootIVAnalyser.TestLibrary(FilePathHelper.GetCurrentDirectory() + "IV_0_0_0_0.json");
+            BatchIVDataConverter("IVResults", relativePath: true); //location next to binary
+        }
+        catch (System.Exception e)
+        {
+            Console.WriteLine($"Error: {e.Message}{Environment.NewLine}{e.StackTrace}");
+        }
+
     }
 }

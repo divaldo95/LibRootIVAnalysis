@@ -40,6 +40,10 @@ make -jN (where N is the number of jobs to run simultaneously)
 4. Run and check the output (In [CSharpTest](CSharpTest) folder issue `dotnet run` command)
 
 ## Changelog
+### 2024.07.05
+- Added legacy binary result file converter stuff
+- Added DMM resistance
+
 ### 2024.05.10
 - Compatiblity changes
 - Added common structs, types
