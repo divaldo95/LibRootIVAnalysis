@@ -1,4 +1,5 @@
 ﻿using System.Security.AccessControl;
+using System.Text;
 using Newtonsoft.Json;
 
 namespace CSharpTest;
@@ -124,7 +125,78 @@ class Program
                 }
             }
 
-            FileWriter.WriteBinaryIVData(data.SiPMLocation.Module, data.SiPMLocation.SiPM, "IVConvert", temps, data.IVResult.DMMVoltage.ToArray(), data.IVResult.SMUVoltage.ToArray(), data.IVResult.SMUCurrent.ToArray(), double.MaxValue, "0106", data.IVResult.StartTimestamp);
+            FileWriter.WriteBinaryIVData(data.SiPMLocation.Module, data.SiPMLocation.SiPM, "IVConvert", temps, data.IVResult.DMMVoltage.ToArray(), data.IVResult.SMUVoltage.ToArray(), data.IVResult.SMUCurrent.ToArray(), data.DMMResistanceResult.Resistance, "0106", data.IVResult.StartTimestamp);
+        }
+    }
+
+    public static void BatchIVDataAnalyser(string directory, bool relativePath = true)
+    {
+        string directoryToLoopThrough;
+        if (relativePath)
+        {
+            directoryToLoopThrough = Path.Combine(FilePathHelper.GetCurrentDirectory(), directory);
+        }
+        else
+        {
+            directoryToLoopThrough = directory;
+        }
+
+        string fileNamePattern = "*.json"; // The common file name pattern to match
+        string[] files = Directory.GetFiles(directory, fileNamePattern);
+
+        // Process each file in the directory
+        StringBuilder sb = new StringBuilder();
+        string filePath = Path.Combine(directory, $"results.txt");
+        using StreamWriter outputFile = new StreamWriter(filePath, true);
+        foreach (string file in files)
+        {
+            try
+            {
+                sb.Clear();
+                Console.WriteLine($"File: {file}");
+                // Read JSON data from the file
+                CurrentMeasurementDataModel data = RootIVAnalyser.OpenFile(file);
+
+                var temps = RootIVAnalyser.GetTemperatures(data);
+                var dcTemps = RootIVAnalyser.GetDarkCurrentTemperatures(data);
+                double average = temps.Average();
+                double sumOfSquaresOfDifferences = temps.Select(val => (val - average) * (val - average)).Sum();
+                double stdDevTemp = Math.Sqrt(sumOfSquaresOfDifferences / temps.Count);
+
+                double Vbr = 0.0;
+                double cVbr = 0.0;
+                double chi2 = 0.0;
+
+                RootIVAnalyser.CalculateBreakdown(data, out Vbr, out cVbr, out chi2);
+                sb.Append(data.Barcode);
+                sb.Append(" ");
+                sb.Append(data.SiPMLocation.SiPM);
+                sb.Append(" ");
+                sb.Append(average);
+                sb.Append(" ");
+                sb.Append(stdDevTemp);
+                sb.Append(" ");
+                sb.Append(Vbr);
+                sb.Append(" ");
+                sb.Append(cVbr);
+                sb.Append(" ");
+
+                sb.Append(data.DarkCurrentResult.FirstDarkCurrent);
+                sb.Append(" ");
+                sb.Append(data.DarkCurrentResult.SecondDarkCurrent);
+                sb.Append(" ");
+                sb.Append(dcTemps.Average());
+                sb.Append(" ");
+                sb.Append(data.ForwardResistanceResult.ForwardResistance);
+                sb.Append(" ");
+
+                outputFile.WriteLine(sb.ToString());
+            }
+            catch (System.Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+
         }
     }
 
@@ -134,8 +206,10 @@ class Program
         Console.WriteLine("Hello, World!");
         try
         {
+            string directory = "Measurements/61-64";
             //RootIVAnalyser.TestLibrary(FilePathHelper.GetCurrentDirectory() + "IV_0_0_0_0.json");
-            BatchIVDataConverter("IVResults", relativePath: true); //location next to binary
+            //BatchIVDataConverter(directory);
+            BatchIVDataAnalyser(directory);
         }
         catch (System.Exception e)
         {

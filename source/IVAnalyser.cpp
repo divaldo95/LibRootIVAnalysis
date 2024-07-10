@@ -14,7 +14,6 @@ IVAnalyser::~IVAnalyser()
         delete derivativeArray_sm;
 }
 
-
 double IVAnalyser::GetRawVbr()
 {
     return VBR_RAW;
@@ -50,6 +49,11 @@ int IVAnalyser::Get_preSmoothsWidth()
     return preSmoothsWidth;
 }
 
+void IVAnalyser::SetCompensationTemperature(double t)
+{
+    temperatureTo = t;
+}
+
 void IVAnalyser::SetSiPMTemperature(double temp)
 {
     simpTemp = temp;
@@ -77,14 +81,13 @@ void IVAnalyser::SetSmoothingProperties(uint32_t nPreSmooths_, uint32_t preSmoot
 
 double IVAnalyser::calcBreakdownTo25C_nearest(double BreakdownVoltage)
 {
-    const double operatingTemp = 25.0; // Celsius
-    return BreakdownVoltage + ((operatingTemp - simpTemp) * tempCoeff);
+    return BreakdownVoltage + ((temperatureTo - simpTemp) * tempCoeff);
 }
 
 // run savitzky-Golay filter 'nruns' time on the inputArray
 //  filterWidth it must be 5,7 or 9
 //  if nruns 0 this function return with the original array
-double* IVAnalyser::runSGMultiple(int inArraySize, double *inArray, int filterWidth, int nruns)
+double *IVAnalyser::runSGMultiple(int inArraySize, double *inArray, int filterWidth, int nruns)
 {
     double *ret = inArray;
     for (int i = 0; i < nruns; i++)
@@ -116,8 +119,7 @@ void IVAnalyser::CloseOutRootFile()
 {
     if (outRootFile != NULL)
     {
-        outRootFile -> Close();
+        outRootFile->Close();
         outRootFile = NULL;
-        
     }
 }

@@ -15,6 +15,7 @@ public class RootIVAnalyser : IDisposable
     public static extern IntPtr RIVA_Class_AnalyseIV(IntPtr ivAnalyser,
                                                     SiPMData data,
                                                     AnalysisTypes method,
+                                                    double temperatureToCompensate,
                                                     bool savePlots,
                                                     string outBasePath,
                                                     string filePrefix);
@@ -34,9 +35,9 @@ public class RootIVAnalyser : IDisposable
         ivAnalyser = RIVA_Class_Create();
     }
 
-    public void AnalyseIV(SiPMData data, AnalysisTypes type, bool savePlots, string outBasePath, string filePrefix)
+    public void AnalyseIV(SiPMData data, AnalysisTypes type, double temperatureToCompensate, bool savePlots, string outBasePath, string filePrefix)
     {
-        RIVA_Class_AnalyseIV(ivAnalyser, data, type, savePlots, outBasePath, filePrefix);
+        RIVA_Class_AnalyseIV(ivAnalyser, data, type, temperatureToCompensate, savePlots, outBasePath, filePrefix);
     }
 
     public void GetResult(out double RawBreakdownVoltage, out double CompensatedBreakdownVoltage, out double ChiSquare)
@@ -128,7 +129,7 @@ public class RootIVAnalyser : IDisposable
         string outPath = Path.Combine(FilePathHelper.GetCurrentDirectory(), "results");
         Directory.CreateDirectory(outPath);
 
-        iv.AnalyseIV(data, AnalysisTypes.RelativeDerivativeMethod, true, outPath, "TestIVResult");
+        iv.AnalyseIV(data, AnalysisTypes.RelativeDerivativeMethod, 20.0, true, outPath, "TestIVResult");
 
         voltagesHandle.Free();
         currentsHandle.Free();
@@ -172,12 +173,40 @@ public class RootIVAnalyser : IDisposable
         return temperatures;
     }
 
+    public static List<double> GetDarkCurrentTemperatures(CurrentMeasurementDataModel c)
+    {
+        List<double> temperatures = new List<double>();
+        int index = GetUsedTemperatureIndex(c.SiPMLocation.Array, c.SiPMLocation.SiPM);
+        if (c.DarkCurrentResult.DarkCurrentResult == null)
+        {
+            return temperatures;
+        }
+        for (int i = 0; i < c.DarkCurrentResult.DarkCurrentResult.Temperatures.Count; i++)
+        {
+            if (c.SiPMLocation.Module == 0)
+            {
+                double temp = c.DarkCurrentResult.DarkCurrentResult.Temperatures[i].Module1[index];
+                temperatures.Add(temp);
+            }
+            else
+            {
+                double temp = c.DarkCurrentResult.DarkCurrentResult.Temperatures[i].Module2[index];
+                temperatures.Add(temp);
+            }
+        }
+        return temperatures;
+    }
+
     public static void CalculateBreakdown(string file, out double Vbr, out double compVbr, out double chi2)
+    {
+        CurrentMeasurementDataModel c = JSONHelper.ReadJsonFile<CurrentMeasurementDataModel>(file);
+        CalculateBreakdown(c, out Vbr, out compVbr, out chi2);
+    }
+
+    public static void CalculateBreakdown(CurrentMeasurementDataModel c, out double Vbr, out double compVbr, out double chi2)
     {
         Console.WriteLine("Starting analysis...");
         RootIVAnalyser iv = new RootIVAnalyser();
-
-        CurrentMeasurementDataModel c = JSONHelper.ReadJsonFile<CurrentMeasurementDataModel>(file);
 
         double[] voltagesArray = c.IVResult.DMMVoltage.ToArray();
         double[] currentsArray = c.IVResult.SMUCurrent.ToArray();
@@ -204,7 +233,7 @@ public class RootIVAnalyser : IDisposable
         Directory.CreateDirectory(outPath);
         string outFilePrefix = $"{c.SiPMLocation.Block}_{c.SiPMLocation.Module}_{c.SiPMLocation.Array}_{c.SiPMLocation.SiPM}";
 
-        iv.AnalyseIV(data, AnalysisTypes.RelativeDerivativeMethod, false, outPath, outFilePrefix);
+        iv.AnalyseIV(data, AnalysisTypes.RelativeDerivativeMethod, 20.0, false, outPath, outFilePrefix);
 
         voltagesHandle.Free();
         currentsHandle.Free();
@@ -251,16 +280,209 @@ internal static class JSONHelper
     }
 }
 
+public enum VoltageAndCurrentMeasurementTypes
+{
+    LeakageCurrent,
+    DarkCurrent,
+    ForwardResistance,
+    Unknown
+}
+
 public class CurrentMeasurementDataModel
 {
     public bool IsIVDone { get; set; } = false;
     public bool IsSPSDone { get; set; } = false;
     public CurrentSiPMModel SiPMLocation { get; set; }
+    public string Barcode { get; set; } = "";
     public SiPM SiPMMeasurementDetails { get; set; }
     public DMMResistanceMeasurementResponseModel DMMResistanceResult { get; set; } = new DMMResistanceMeasurementResponseModel();
     public MeasurementIdentifier IVMeasurementID { get; set; } = new MeasurementIdentifier();
     public MeasurementIdentifier SPSMeasurementID { get; set; } = new MeasurementIdentifier();
     public IVMeasurementResponseModel IVResult { get; set; } = new IVMeasurementResponseModel();
+    public ForwardResistanceMeasurementResponseModel ForwardResistanceResult { get; set; } = new ForwardResistanceMeasurementResponseModel();
+    public DarkCurrentMeasurementResponseModel DarkCurrentResult { get; set; } = new DarkCurrentMeasurementResponseModel();
+}
+
+public class SMUVoltageModel
+{
+    public double Voltage { get; set; }
+    public double CurrentLimit { get; set; }
+    public double CurrentLimitRange { get; set; }
+    public int Iterations { get; set; }
+    public double VoltageRange { get; set; }
+}
+
+public class NIVoltageAndCurrentStartModel
+{
+    public MeasurementIdentifier Identifier { get; set; } = new MeasurementIdentifier();
+    public VoltageAndCurrentMeasurementTypes MeasurementType { get; set; } = VoltageAndCurrentMeasurementTypes.Unknown;
+    public SMUVoltageModel FirstIteration { get; set; } = new SMUVoltageModel();
+    public SMUVoltageModel SecondIteration { get; set; } = new SMUVoltageModel();
+}
+
+public class VoltageAndCurrentMeasurementResponseModel
+{
+    public MeasurementIdentifier Identifier { get; set; }
+    public NIVoltageAndCurrentStartModel StartModel { get; set; }
+    public long StartTimestamp { get; set; }
+    public long EndTimestamp { get; set; }
+    public bool ErrorHappened { get; set; }
+    public string ErrorMessage { get; set; }
+    public List<double> FirstIterationVoltages { get; set; }
+    public List<double> FirstIterationCurrents { get; set; }
+    public List<double> SecondIterationVoltages { get; set; }
+    public List<double> SecondIterationCurrents { get; set; }
+    public double FirstIterationVoltageAverage { get; set; }
+    public double SecondIterationVoltageAverage { get; set; }
+    public double FirstIterationCurrentAverage { get; set; }
+    public double SecondIterationCurrentAverage { get; set; }
+    public List<TemperaturesArray> Temperatures { get; set; }
+}
+
+public class DarkCurrentMeasurementResponseModel : IEquatable<MeasurementIdentifier>
+{
+    public VoltageAndCurrentMeasurementResponseModel LeakageCurrentResult { get; set; } = new VoltageAndCurrentMeasurementResponseModel();
+    public VoltageAndCurrentMeasurementResponseModel DarkCurrentResult { get; set; } = new VoltageAndCurrentMeasurementResponseModel();
+
+    public double FirstLeakageCurrent
+    {
+        get
+        {
+            if (LeakageCurrentResult == null)
+            {
+                throw new NullReferenceException("LeakageCurrentResult is null");
+            }
+            return LeakageCurrentResult.FirstIterationCurrentAverage;
+        }
+    }
+
+    public double SecondLeakageCurrent
+    {
+        get
+        {
+            if (LeakageCurrentResult == null)
+            {
+                throw new NullReferenceException("LeakageCurrentResult is null");
+            }
+            return LeakageCurrentResult.SecondIterationCurrentAverage;
+        }
+    }
+
+    public double FirstDarkCurrent
+    {
+        get
+        {
+            if (DarkCurrentResult == null)
+            {
+                throw new NullReferenceException("DarkCurrentResult is null");
+            }
+            return DarkCurrentResult.FirstIterationCurrentAverage;
+        }
+    }
+
+    public double SecondDarkCurrent
+    {
+        get
+        {
+            if (DarkCurrentResult == null)
+            {
+                throw new NullReferenceException("DarkCurrentResult is null");
+            }
+            return DarkCurrentResult.SecondIterationCurrentAverage;
+        }
+    }
+
+    public double FirstDarkCurrentCompensated
+    {
+        get
+        {
+            if (DarkCurrentResult == null || LeakageCurrentResult == null)
+            {
+                throw new NullReferenceException("DarkCurrentResult or LeakageCurrentResult is null");
+            }
+            return DarkCurrentResult.FirstIterationCurrentAverage - LeakageCurrentResult.FirstIterationCurrentAverage;
+        }
+    }
+
+    public double SecondDarkCurrentCompensated
+    {
+        get
+        {
+            if (DarkCurrentResult == null || LeakageCurrentResult == null)
+            {
+                throw new NullReferenceException("DarkCurrentResult or LeakageCurrentResult is null");
+            }
+            return DarkCurrentResult.SecondIterationCurrentAverage - LeakageCurrentResult.FirstIterationCurrentAverage;
+        }
+    }
+
+    public DarkCurrentMeasurementResponseModel()
+    {
+    }
+
+    //To get the right measurement by only one matching identifier
+    public bool Equals(MeasurementIdentifier? other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+
+        if (LeakageCurrentResult != null && LeakageCurrentResult.Identifier != null)
+        {
+            if (LeakageCurrentResult.Identifier.Equals(other))
+            {
+                return true;
+            }
+        }
+        if (DarkCurrentResult != null && DarkCurrentResult.Identifier != null)
+        {
+            if (DarkCurrentResult.Identifier.Equals(other))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+public class ForwardResistanceMeasurementResponseModel : IEquatable<MeasurementIdentifier>
+{
+    public VoltageAndCurrentMeasurementResponseModel Result { get; set; } = new VoltageAndCurrentMeasurementResponseModel();
+
+    public double ForwardResistance
+    {
+        get
+        {
+            if (Result == null)
+            {
+                throw new NullReferenceException("Forward Resistance Result is null");
+            }
+            return (Math.Abs(Result.SecondIterationVoltageAverage) - Math.Abs(Result.FirstIterationVoltageAverage)) / (Math.Abs(Result.SecondIterationCurrentAverage) - Math.Abs(Result.FirstIterationCurrentAverage)) - 49.9;
+        }
+    }
+
+    public ForwardResistanceMeasurementResponseModel()
+    {
+    }
+
+    //Get by identifier
+    public bool Equals(MeasurementIdentifier? other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+
+        if (Result != null && Result.Identifier != null)
+        {
+            if (Result.Identifier.Equals(other))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 public class DMMResistanceMeasurementResponseModel

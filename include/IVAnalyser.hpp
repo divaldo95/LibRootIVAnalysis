@@ -52,6 +52,8 @@ public:
     int Get_nPreSmooths();
     int Get_preSmoothsWidth();
 
+    void SetCompensationTemperature(double t);
+
     void SetSiPMTemperature(double temp);
     void SetSiPMTemperatureStdDev(double temp);
     void SetArrayPointers(double *voltages, double *currents, size_t nPoints);
@@ -96,6 +98,9 @@ protected:
 
     std::unique_ptr<TFile> outRootFile = NULL;
 
+    // Temperature to compensate to
+    double temperatureTo = 20.0;
+
     // Voltages
     double VBR_RAW = 0.0;
     double VBR_COMP = 0.0;
@@ -107,7 +112,7 @@ protected:
     //----------------------------------------------------------------------------------
     // default settings, modifiable through constructor
     // number of runs of SG filter on original IV curve before ln(), if no filter is required set to 0
-    int nPreSmooths = 1;
+    int nPreSmooths = 0;
     // SG filter width 5,7 or 9
     int preSmoothsWidth = 9;
 

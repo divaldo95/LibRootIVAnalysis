@@ -3,9 +3,9 @@ Description:
     Define a shared library export for any platform.
  */
 #ifdef _WIN32
-# define DLL_EXPORT_TYP __declspec(dllexport)
+#define DLL_EXPORT_TYP __declspec(dllexport)
 #else
-# define DLL_EXPORT_TYP
+#define DLL_EXPORT_TYP
 #endif
 
 #pragma once
@@ -17,21 +17,21 @@ Description:
 #include "AnalysisProperties.hpp"
 #include <sys/stat.h>
 
-//MacOS compatibility
+// MacOS compatibility
 #ifndef S_IRWXU
-#define S_IRWXU 0000700  // RWX mask for owner
+#define S_IRWXU 0000700 // RWX mask for owner
 #endif
 
 #ifndef S_IRWXG
-#define S_IRWXG 0000070  // RWX mask for group
+#define S_IRWXG 0000070 // RWX mask for group
 #endif
 
 #ifndef S_IROTH
-#define S_IROTH 0000004  // R for other
+#define S_IROTH 0000004 // R for other
 #endif
 
 #ifndef S_IXOTH
-#define S_IXOTH 0000001  // X for other
+#define S_IXOTH 0000001 // X for other
 #endif
 
 class RootIVAnalyser
@@ -47,7 +47,7 @@ public:
     RootIVAnalyser();
     ~RootIVAnalyser();
 
-    bool AnalyseIV(SiPMData data, AnalysisTypes method, std::string outBasePath, std::string filePrefix, bool savePlots);
+    bool AnalyseIV(SiPMData data, AnalysisTypes method, double temperatureTo, std::string outBasePath, std::string filePrefix, bool savePlots);
 
     void GetResults(double *rVbr, double *cVbr, double *cs);
 

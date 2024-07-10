@@ -17,6 +17,10 @@ make -jN (where N is the number of jobs to run simultaneously)
 
 ## Changelog
 ### 2024.05.10
+- Changed default values
+- Temperature for compensation can be changed
+
+### 2024.05.10
 - Improved modularity
 - Changed the interfaces
 - Added temperature compensation
@@ -40,6 +44,11 @@ make -jN (where N is the number of jobs to run simultaneously)
 4. Run and check the output (In [CSharpTest](CSharpTest) folder issue `dotnet run` command)
 
 ## Changelog
+### 2024.07.10
+- Batch analysis
+- Added new fields
+- Adapt changes to the analysis
+
 ### 2024.07.05
 - Added legacy binary result file converter stuff
 - Added DMM resistance
