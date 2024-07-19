@@ -20,6 +20,14 @@
 #include "Plot.hpp"
 #include "SavitzkyGolayFilter.hpp"
 
+// #define NDEBUG
+
+#ifdef NDEBUG
+#define DBG_PRINT_PRETTY_FUNC std::cout << __PRETTY_FUNCTION__ << std::endl;
+#else
+#define DBG_PRINT_PRETTY_FUNC
+#endif
+
 /**
  *
  *  @class  IVAnalyser

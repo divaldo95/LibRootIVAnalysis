@@ -1,4 +1,5 @@
-﻿using System.Security.AccessControl;
+﻿using System.Globalization;
+using System.Security.AccessControl;
 using System.Text;
 using Newtonsoft.Json;
 
@@ -110,28 +111,22 @@ class Program
 
             CurrentMeasurementDataModel data = RootIVAnalyser.OpenFile(file);
 
-            double[] temps;
-            if (data.IVResult.Temperatures.Count > 0)
-            {
-                int index = (int)data.IVResult.Temperatures.Count / 2;
-                temps = data.IVResult.Temperatures[index].Module1;
-            }
-            else
-            {
-                temps = new double[8];
-                for (int i = 0; i < 8; i++)
-                {
-                    temps[i] = 25.0;
-                }
-            }
 
-            FileWriter.WriteBinaryIVData(data.SiPMLocation.Module, data.SiPMLocation.SiPM, "IVConvert", temps, data.IVResult.DMMVoltage.ToArray(), data.IVResult.SMUVoltage.ToArray(), data.IVResult.SMUCurrent.ToArray(), data.DMMResistanceResult.Resistance, "0106", data.IVResult.StartTimestamp);
+            string outFilePath = Path.Combine(directory, "binary");
+            FileWriter.WriteBinaryIVData(data, outFilePath);
         }
     }
 
     public static void BatchIVDataAnalyser(string directory, bool relativePath = true)
     {
         string directoryToLoopThrough;
+
+        NumberFormatInfo nfi = new NumberFormatInfo
+        {
+            NumberDecimalSeparator = ",",
+            NumberGroupSeparator = ""
+        };
+
         if (relativePath)
         {
             directoryToLoopThrough = Path.Combine(FilePathHelper.GetCurrentDirectory(), directory);
@@ -144,15 +139,15 @@ class Program
         string fileNamePattern = "*.json"; // The common file name pattern to match
         string[] files = Directory.GetFiles(directory, fileNamePattern);
 
-        // Process each file in the directory
-        StringBuilder sb = new StringBuilder();
         string filePath = Path.Combine(directory, $"results.txt");
-        using StreamWriter outputFile = new StreamWriter(filePath, true);
+
+        var groupedData = new Dictionary<string, List<string>>();
+
         foreach (string file in files)
         {
             try
             {
-                sb.Clear();
+                StringBuilder sb = new StringBuilder();
                 Console.WriteLine($"File: {file}");
                 // Read JSON data from the file
                 CurrentMeasurementDataModel data = RootIVAnalyser.OpenFile(file);
@@ -172,31 +167,52 @@ class Program
                 sb.Append(" ");
                 sb.Append(data.SiPMLocation.SiPM);
                 sb.Append(" ");
-                sb.Append(average);
+                sb.Append(average.ToString("F4", nfi));
                 sb.Append(" ");
-                sb.Append(stdDevTemp);
+                sb.Append(stdDevTemp.ToString("F4", nfi));
                 sb.Append(" ");
-                sb.Append(Vbr);
+                sb.Append(Vbr.ToString("F4", nfi));
                 sb.Append(" ");
-                sb.Append(cVbr);
-                sb.Append(" ");
-
-                sb.Append(data.DarkCurrentResult.FirstDarkCurrent);
-                sb.Append(" ");
-                sb.Append(data.DarkCurrentResult.SecondDarkCurrent);
-                sb.Append(" ");
-                sb.Append(dcTemps.Average());
-                sb.Append(" ");
-                sb.Append(data.ForwardResistanceResult.ForwardResistance);
+                sb.Append(cVbr.ToString("F4", nfi));
                 sb.Append(" ");
 
-                outputFile.WriteLine(sb.ToString());
+                sb.Append(data.DarkCurrentResult.FirstDarkCurrent.ToString("E4", nfi));
+                sb.Append(" ");
+                sb.Append(data.DarkCurrentResult.SecondDarkCurrent.ToString("E4", nfi));
+                sb.Append(" ");
+                sb.Append(dcTemps.Average().ToString("F4", nfi));
+                sb.Append(" ");
+                sb.Append(data.ForwardResistanceResult.ForwardResistance.ToString("F4", nfi));
+                sb.Append(" ");
+
+                // Group by barcode
+                if (!groupedData.ContainsKey(data.Barcode))
+                {
+                    groupedData[data.Barcode] = new List<string>();
+                }
+                groupedData[data.Barcode].Add(sb.ToString());
             }
             catch (System.Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
             }
+        }
 
+        // Sort and write to files
+        foreach (var barcode in groupedData.Keys)
+        {
+            var sortedData = groupedData[barcode]
+                .OrderBy(line => int.Parse(line.Split(' ')[1])) // Assuming SiPM is the second element in the string
+                .ToList();
+
+            string outputFilePath = Path.Combine(directory, $"{barcode}_result.txt");
+            using (StreamWriter outputFile = new StreamWriter(outputFilePath))
+            {
+                foreach (var line in sortedData)
+                {
+                    outputFile.WriteLine(line);
+                }
+            }
         }
     }
 
@@ -206,10 +222,15 @@ class Program
         Console.WriteLine("Hello, World!");
         try
         {
-            string directory = "Measurements/61-64";
+            var dirs = Directory.GetDirectories("Measurements");
+            foreach (var directory in dirs)
+            {
+                BatchIVDataConverter(directory);
+                BatchIVDataAnalyser(directory);
+            }
+            //string directory = "Measurements/61-64/";
             //RootIVAnalyser.TestLibrary(FilePathHelper.GetCurrentDirectory() + "IV_0_0_0_0.json");
-            //BatchIVDataConverter(directory);
-            BatchIVDataAnalyser(directory);
+
         }
         catch (System.Exception e)
         {

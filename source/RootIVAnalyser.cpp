@@ -2,17 +2,19 @@
 
 RootIVAnalyser::RootIVAnalyser()
 {
+    DBG_PRINT_PRETTY_FUNC;
 }
 
 RootIVAnalyser::~RootIVAnalyser()
 {
+    DBG_PRINT_PRETTY_FUNC;
 }
 
 bool RootIVAnalyser::AnalyseIV(SiPMData data, AnalysisTypes method, double temperatureTo, std::string outBasePath, std::string filePrefix, bool savePlots)
 {
     // std::string output_dir_plots = outBasePath + "IV/plots";
     // mkdir(output_dir_plots.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-
+    DBG_PRINT_PRETTY_FUNC;
     std::unique_ptr<IVAnalyser> analysis;
     switch (method)
     {
@@ -42,11 +44,9 @@ bool RootIVAnalyser::AnalyseIV(SiPMData data, AnalysisTypes method, double tempe
         std::cout << "Error while running analysis" << std::endl;
         return false;
     }
-
     rawVbr = analysis->GetRawVbr();
     compVbr = analysis->GetCompVbr();
     chisquare = analysis->GetChi2();
-
     if (savePlots)
     {
         analysis->SaveAllPlot(outBasePath, filePrefix);
@@ -56,6 +56,7 @@ bool RootIVAnalyser::AnalyseIV(SiPMData data, AnalysisTypes method, double tempe
 
 void RootIVAnalyser::GetResults(double *rVbr, double *cVbr, double *cs)
 {
+    DBG_PRINT_PRETTY_FUNC;
     *rVbr = rawVbr;
     *cVbr = compVbr;
     *cs = chisquare;
@@ -63,6 +64,7 @@ void RootIVAnalyser::GetResults(double *rVbr, double *cVbr, double *cs)
 
 void RootIVAnalyser::SetProperties(AnalysisProperties props)
 {
+    DBG_PRINT_PRETTY_FUNC;
     this->props = props;
 }
 

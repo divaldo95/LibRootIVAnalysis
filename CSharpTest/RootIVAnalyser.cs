@@ -79,6 +79,7 @@ public class RootIVAnalyser : IDisposable
     {
         CurrentMeasurementDataModel c = JSONHelper.ReadJsonFile<CurrentMeasurementDataModel>(file);
 
+        /*
         double[] temps;
         if (c.IVResult.Temperatures.Count > 0)
         {
@@ -93,6 +94,7 @@ public class RootIVAnalyser : IDisposable
                 temps[i] = 25.0;
             }
         }
+        */
         return c;
     }
 
@@ -210,6 +212,22 @@ public class RootIVAnalyser : IDisposable
 
         double[] voltagesArray = c.IVResult.DMMVoltage.ToArray();
         double[] currentsArray = c.IVResult.SMUCurrent.ToArray();
+
+        //compensate current
+        if (c.DMMResistanceResult.Resistance > 0)
+        {
+            for (int i = 0; i < voltagesArray.Length; i++)
+            {
+                double current = voltagesArray[i] / c.DMMResistanceResult.Resistance;
+                currentsArray[i] = currentsArray[i] - current;
+                if (currentsArray[i] < 0)
+                {
+
+                    Console.WriteLine($"Negative current ({currentsArray[i].ToString("0.00")}). Consider increasing the DMM resistance compensation percentage");
+                    currentsArray[i] = 0;
+                }
+            }
+        }
 
         // Pin the arrays to get their pointers
         GCHandle voltagesHandle = GCHandle.Alloc(voltagesArray, GCHandleType.Pinned);

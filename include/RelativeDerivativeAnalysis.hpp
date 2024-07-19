@@ -17,6 +17,7 @@ class RelativeDerivativeAnalysis : public IVAnalyser
 public:
 	RelativeDerivativeAnalysis()
 	{
+		DBG_PRINT_PRETTY_FUNC;
 		nPreSmooths = 0;
 		// SG filter width 5,7 or 9
 		preSmoothsWidth = 5;
@@ -25,7 +26,6 @@ public:
 		nderSmooths = 0;
 		// SG filter width 5,7 or 9
 		derSmoothsWidth = 5;
-
 	}
 
 	/*
@@ -44,15 +44,15 @@ public:
 
 	//----------------------------------------------------------------------------------
 	*/
-	
 
 	void SetSmoothingProperties(uint32_t nPreSmooths_, uint32_t preSmoothsWidth_, uint32_t nlnSmooths_, uint32_t lnSmoothsWidth_,
-                                uint32_t nderSmooths_, uint32_t derSmoothsWidth_, double fit_width_)
-    {
-        // Set common properties using base function
-        IVAnalyser::SetSmoothingProperties(nPreSmooths_, preSmoothsWidth_, nderSmooths_, derSmoothsWidth_);
+								uint32_t nderSmooths_, uint32_t derSmoothsWidth_, double fit_width_)
+	{
+		DBG_PRINT_PRETTY_FUNC;
+		// Set common properties using base function
+		IVAnalyser::SetSmoothingProperties(nPreSmooths_, preSmoothsWidth_, nderSmooths_, derSmoothsWidth_);
 
-        // Set custom properties
+		// Set custom properties
 		nlnSmooths = nlnSmooths_;
 		lnSmoothsWidth = lnSmoothsWidth_;
 		fit_width = fit_width_;
@@ -66,10 +66,11 @@ public:
 					<< "derivativeSmoothWidth: " << derSmoothsWidth << std::endl
 					<< "fitWidth: "             << fit_width << std::endl;
 		*/
-    }
+	}
 
 	void SaveFitPlot(std::string path, std::string prefix)
 	{
+		DBG_PRINT_PRETTY_FUNC;
 		if (!error && plot != NULL)
 		{
 			std::string RAW_Vbr_text = "RAW Vbr:" + std::to_string(VBR_RAW) + "V";
@@ -90,17 +91,17 @@ public:
 			TMultiGraph *ptr = plot -> GetResultMultiGraph();
 			ptr -> Write("fitted_data");
 			CloseOutRootFile();
-
 		}
 	}
 
 	void SaveAllPlot(std::string path, std::string prefix)
 	{
+		DBG_PRINT_PRETTY_FUNC;
 		if (!error)
 		{
 			SaveFitPlot(path, prefix);
 
-			OpenOutRootFile(path, prefix);			
+			OpenOutRootFile(path, prefix);
 
 			Plot IV_plot(voltageArray, currentArray, nMeasurements, iv_plot_cut, "IV curve");
 			IV_plot.addSmoothedGraph(voltageArray, fineCurr_sm);
@@ -126,40 +127,57 @@ public:
 
 	int Get_nlnSmooths()
 	{
+		DBG_PRINT_PRETTY_FUNC;
 		return nlnSmooths;
 	}
 
 	int Get_lnSmoothsWidth()
 	{
+		DBG_PRINT_PRETTY_FUNC;
 		return lnSmoothsWidth;
 	}
 
 	double Get_fit_width()
 	{
+		DBG_PRINT_PRETTY_FUNC;
 		return fit_width;
 	}
 
 	// destructor
 	virtual ~RelativeDerivativeAnalysis()
 	{
-		if (lnArray)
+		DBG_PRINT_PRETTY_FUNC;
+#ifdef NDEBUG
+		std::cout << "lnArray: " << lnArray << std::endl;
+		std::cout << "lnSMArray: " << lnArray_sm << std::endl;
+#endif
+		/*
+		 * if nSmooth* is set to zero one of the functions returns the same address
+		 * must prevent double free
+		 */
+		if (lnArray != NULL && lnArray_sm != NULL && lnArray == lnArray_sm)
+		{
 			delete lnArray;
-		if (lnArray_sm)
+		}
+		else if (lnArray)
+			delete lnArray;
+		else if (lnArray_sm)
 			delete lnArray_sm;
 	}
 
 	bool RunAnalysis()
-    {
+	{
+		DBG_PRINT_PRETTY_FUNC;
 		if (nMeasurements == 0 || voltageArray == NULL || currentArray == NULL)
-        {
-            error = true;
-            return false;
-        }
+		{
+			error = true;
+			return false;
+		}
 		lnArray = new (std::nothrow) double[nMeasurements];
 		if (lnArray == NULL)
 		{
 			error = true;
-            return false;
+			return false;
 		}
 
 		// calculate plot display cuts
@@ -190,7 +208,7 @@ public:
 		if (plot == NULL)
 		{
 			error = true;
-            return false;
+			return false;
 		}
 
 		plot->addSmoothedGraph(voltageArray, derivativeArray_sm);
@@ -199,7 +217,7 @@ public:
 		if (relDerGraphSm == NULL)
 		{
 			error = true;
-            return false;
+			return false;
 		}
 
 		max_xpos = GetGraphYmaxXpos(relDerGraphSm);

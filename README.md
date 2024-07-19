@@ -16,6 +16,10 @@ make -jN (where N is the number of jobs to run simultaneously)
 ```
 
 ## Changelog
+### 2024.07.13
+- Fixed pointer issues
+- Added debug prints if NDEBUG is defined
+
 ### 2024.05.10
 - Changed default values
 - Temperature for compensation can be changed
@@ -44,6 +48,12 @@ make -jN (where N is the number of jobs to run simultaneously)
 4. Run and check the output (In [CSharpTest](CSharpTest) folder issue `dotnet run` command)
 
 ## Changelog
+### 2024.07.13
+- Added Forward Resistance and Dark Current measurements to binary file
+
+### 2024.07.11
+- Fixed positions in binary converter
+
 ### 2024.07.10
 - Batch analysis
 - Added new fields
