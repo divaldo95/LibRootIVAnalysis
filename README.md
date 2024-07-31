@@ -48,6 +48,9 @@ make -jN (where N is the number of jobs to run simultaneously)
 4. Run and check the output (In [CSharpTest](CSharpTest) folder issue `dotnet run` command)
 
 ## Changelog
+### 2024.07.23
+- Added temperature gradient calculation and compensation
+
 ### 2024.07.13
 - Added Forward Resistance and Dark Current measurements to binary file
 
