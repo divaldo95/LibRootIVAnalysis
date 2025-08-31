@@ -58,22 +58,22 @@ class SavitzkyGolayFilter {
 	filteredArray = new double[nInputArray];
 	ExtendedInputArray = new double[nExtendedInputArray];
 	
-	for(int i=0;i<nInputArray;i++){
+	for(unsigned int i=0;i<nInputArray;i++){
 		ExtendedInputArray[startIndex+i] = inputArray[i];
 	}
 	
-	for(int i=0; i<startIndex;i++)  //extend the array start
+	for(unsigned int i=0; i<startIndex;i++)  //extend the array start
 	{
 		ExtendedInputArray[i] = inputArray[startIndex-i];
 	}
 	
-	for(int i=0; i<startIndex;i++)  //extend the array end
+	for(unsigned int i=0; i<startIndex;i++)  //extend the array end
 	{
 		ExtendedInputArray[startIndex+nInputArray+i] = inputArray[nInputArray-1-1-i];
 	}
 	
 	
-	for(int i=0; i<nInputArray;i++)
+	for(unsigned int i=0; i<nInputArray;i++)
 	{
 		double accu = 0;
 		for(int j=0;j<_filterSize;j++)

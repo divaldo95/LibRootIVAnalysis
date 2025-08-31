@@ -31,7 +31,7 @@ class Derivate {
 	
 	
 	//calc derivative
-	for(int i=1;i<nInputArray-1;i++){
+	for(unsigned int i=1;i<nInputArray-1;i++){
 	derivativeArray[i] = (YinputArray[i+1]-YinputArray[i-1])/(XinputArray[i+1]-XinputArray[i-1]);
 	}
 	derivativeArray[nInputArray-1] = derivativeArray[nInputArray-2];

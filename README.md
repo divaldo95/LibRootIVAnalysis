@@ -3,11 +3,12 @@
 Root IV analysis code can be found in `source` and `include` directories. Building the library will result in a shared library (.so on Linux, .dylib on MacOS)
 
 ## Prerequisities
-* CERN Root (tested on 6.30)
-* Linux or MacOS
+* CERN Root (tested on 6.36)
+* Windows, Linux, MacOS
 * CMake
 
 ## Building
+### Linux and MacOS
 ```
 git clone https://github.com/divaldo95/LibRootIVAnalysis.git
 mkdir build && cd build
@@ -15,7 +16,21 @@ cmake ../
 make -jN (where N is the number of jobs to run simultaneously)
 ```
 
+### Windows
+Clone this repository, then open a `Developer PowerShell for VS 2022` and run the following commands:
+```
+mkdir build
+cd build
+cmake -G "Visual Studio 17 2022" ../
+MSBuild.exe .\RootIVAnalyser.sln -maxcpucount:N (where N is the number of jobs to run simultaneously)
+```
+
 ## Changelog
+### 2025.08.31
+- Added support for Windows build (Visual Studio 22)
+- Warning fixes
+- Dirty fix of saving plots
+
 ### 2024.07.13
 - Fixed pointer issues
 - Added debug prints if NDEBUG is defined
@@ -43,7 +58,7 @@ make -jN (where N is the number of jobs to run simultaneously)
 
 ## How to run
 1. Build C# app, this will create `CSharpTest/bin/Debug/net8.0` folder
-2. Copy the library to the above mentioned folder (.so or .dylib)
+2. Copy the library to the above mentioned folder (.so, .dylib, .dll)
 3. Get a measurement JSON file and modify [Program.cs](CSharpTest/Program.cs) accordingly
 4. Run and check the output (In [CSharpTest](CSharpTest) folder issue `dotnet run` command)
 

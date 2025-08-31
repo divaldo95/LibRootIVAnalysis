@@ -83,6 +83,12 @@ public:
 			plot->addLabel(tempAvgLabelText.c_str(), 0.7, 0.98);
 			plot->addLabel(tempStdDevLabelText.c_str(), 0.7, 0.95);
 
+			std::filesystem::path dirPath(path);
+			if (!std::filesystem::exists(dirPath))
+			{
+				std::filesystem::create_directories(dirPath);
+			}
+
 			std::string filename = prefix + "_rel_der_fit" + std::to_string(nPreSmooths) + std::to_string(preSmoothsWidth) + std::to_string(nlnSmooths) + std::to_string(lnSmoothsWidth) + std::to_string(nderSmooths) + std::to_string(derSmoothsWidth) + std::to_string((int)(fit_width * 1000));
 
 			plot->save(path.c_str(), filename.c_str());
@@ -189,7 +195,7 @@ public:
 		fineCurr_sm = runSGMultiple(nMeasurements, currentArray, preSmoothsWidth, nPreSmooths);
 
 		// calculate ln()
-		for (int i = 0; i < nMeasurements; i++)
+		for (uint32_t i = 0; i < nMeasurements; i++)
 		{
 			lnArray[i] = TMath::Log(fineCurr_sm[i]);
 		}

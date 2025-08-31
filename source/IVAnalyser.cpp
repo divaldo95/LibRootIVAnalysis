@@ -139,8 +139,13 @@ void IVAnalyser::OpenOutRootFile(std::string path, std::string prefix)
     DBG_PRINT_PRETTY_FUNC;
     CloseOutRootFile();
     std::string extension = ".root";
+    std::filesystem::path dirPath(path);
+    if (!std::filesystem::exists(dirPath))
+    {
+        std::filesystem::create_directories(dirPath);
+    }
     std::filesystem::path filePath = std::filesystem::path(path) / std::filesystem::path(prefix + extension);
-    outRootFile = std::make_unique<TFile>(filePath.c_str(), "UPDATE");
+    outRootFile = std::make_unique<TFile>(filePath.string().c_str(), "UPDATE");
 }
 
 void IVAnalyser::CloseOutRootFile()
